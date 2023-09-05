@@ -1,10 +1,14 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
-	"github.com/gocolly/colly"
+	"log"
 	"math/rand"
+	"os"
 	"time"
+
+	"github.com/gocolly/colly"
 )
 
 func main() {
@@ -15,9 +19,13 @@ func main() {
 		r.Headers.Set("User-Agent", userAgent)
 	})
 
+    fileName := "alter-jp.csv"
+    columnNames := []string { "name","series","character","release","price","size","sculptor","painter","material","brand","url","blog_url" }
+    createCsvFile(fileName, columnNames)
+
 	years := visitFirstPage(c) // Get years and scrape the data
 	for _, year := range years {
-		fmt.Println("Searching from year: ", year)
+		fmt.Println("Scraping from year: ", year)
 		visitPageByYear(year, c)
 		sleepLong()
 	}
@@ -48,8 +56,27 @@ func visitPageByYear(year string, c *colly.Collector) {
 func getFigureLinks(e *colly.HTMLElement) {
 	links := e.ChildAttrs("a", "href")
 	for _, link := range links {
-		fmt.Println("Found figure: ", link)
+        addCharacterToCsv(link)
 	}
+}
+
+func createCsvFile(fileName string, fileHeader []string) {
+    _, err := os.Stat(fileName)
+    if os.IsNotExist(err) {
+        csvFile, err2 := os.Create(fileName)
+        if err2 != nil {
+            log.Fatalf("csv file creation failed: %s", err)
+        }
+        csvWriter := csv.NewWriter(csvFile)
+        csvWriter.Write(fileHeader)
+
+        csvWriter.Flush()
+        csvFile.Close()
+    }
+}
+
+func addCharacterToCsv(link string) {
+    
 }
 
 func sleepShort() {
@@ -61,3 +88,4 @@ func sleepLong() {
 	randomNumber := rand.Float64()*(10-5) + 5
 	time.Sleep(time.Duration(randomNumber) * time.Second)
 }
+

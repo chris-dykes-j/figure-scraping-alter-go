@@ -26,12 +26,12 @@ func main() {
     createCsvFile(columnNames)
 
     var years []string
-
+    
     brand = "Alter"
-    years = visitFirstPage("collabo", c)
+	years = visitFirstPage("figure", c) 
 	for _, year := range years {
 		fmt.Println("Scraping from year: ", year)
-		visitPageByYear(year, "collabo", c)
+		visitPageByYear(year, "figure", c)
 		sleepLong()
 	}
 
@@ -42,12 +42,12 @@ func main() {
 		visitPageByYear(year, "altair", c)
 		sleepLong()
 	}
-    
+
     brand = "Alter"
-	years = visitFirstPage("figure", c) 
+    years = visitFirstPage("collabo", c)
 	for _, year := range years {
 		fmt.Println("Scraping from year: ", year)
-		visitPageByYear(year, "figure", c)
+		visitPageByYear(year, "collabo", c)
 		sleepLong()
 	}
 }
@@ -57,19 +57,10 @@ func visitFirstPage(page string, c *colly.Collector) []string {
 	c.OnHTML("#changeY", func(e *colly.HTMLElement) {
 		years = e.ChildAttrs("option", "value")
 	})
-
-    c.OnHTML(".type-a", func(e *colly.HTMLElement) {
-        links := e.ChildAttrs("a", "href")
-        for _, link := range links {
-            sleepShort()
-            addCharacterToCsv(link)
-        }
-    })
-
-    sleepShort()
 	url := fmt.Sprintf("https://alter-web.jp/%s", page)
 	c.Visit(url)
-
+    sleepShort()
+    c.OnHTMLDetach("#changeY")
 	return years
 }
 
@@ -85,6 +76,7 @@ func visitPageByYear(year string, page string, c *colly.Collector) {
     sleepShort()
 	url := fmt.Sprintf("https://alter-web.jp/%s/?yy=%s&mm=", page, year)
 	c.Visit(url)
+    c.OnHTMLDetach(".type-a")
 }
 
 func createCsvFile(fileHeader []string) {
@@ -174,6 +166,12 @@ func addCharacterToCsv(link string) {
     csvWriter := *csv.NewWriter(csvFile)
     csvWriter.Write(data)
     csvWriter.Flush()
+
+    c.OnHTMLDetach(".hl06")
+    c.OnHTMLDetach(".tbl-01 > tbody")
+    c.OnHTMLDetach(".spec > .txt")
+    c.OnHTMLDetach(".imgtxt-type-b")
+
     sleepShort()
 }
 

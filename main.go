@@ -140,9 +140,11 @@ func addCharacterToCsv(link string) {
     data = append(data, url)
 
     // Add Blog links
+    var blogLinks []string
     c.OnHTML(".imgtxt-type-b", func(h *colly.HTMLElement) {
-        blogLinks := h.ChildAttrs("a", "href")
+        blogLinks = h.ChildAttrs("a", "href")
         for i, blogLink := range blogLinks {
+            println(blogLink)
             blogLinks[i] = fmt.Sprintf("https://alter-web.jp%s", blogLink)
         }
         data = append(data, strings.Join(blogLinks, ","))
@@ -151,6 +153,11 @@ func addCharacterToCsv(link string) {
 	err = c.Visit(url)
     if err != nil {
         log.Fatalf("Error: %s, %s", err, link)
+    }
+
+    // Handle empty blogLinks
+    if (len(blogLinks) == 0) {
+        data = append(data, "null")
     }
 
     // Add Brand

@@ -6,33 +6,53 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gocolly/colly"
 )
 
 var fileName = "alter-jp.csv"
-    
+var userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/116.0"
+var brand string
+
 func main() {
 	c := colly.NewCollector()
-
-	userAgent := "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/116.0"
 	c.OnRequest(func(r *colly.Request) {
 		r.Headers.Set("User-Agent", userAgent)
 	})
 
-    columnNames := []string { "name","series","character","release","price","size","sculptor","painter","material","brand","url","blog_url" }
+    columnNames := []string { "name","series","character","release","price","size","sculptor","painter","material","url","blog_url", "brand"}
     createCsvFile(columnNames)
 
-	years := visitFirstPage(c) // Get years and scrape the data
+    var years []string
+
+    brand = "Alter"
+    years = visitFirstPage("collabo", c)
 	for _, year := range years {
 		fmt.Println("Scraping from year: ", year)
-		visitPageByYear(year, c)
+		visitPageByYear(year, "collabo", c)
+		sleepLong()
+	}
+
+    brand = "Altair"
+    years = visitFirstPage("altair", c)
+    for _, year := range years {
+		fmt.Println("Scraping from year: ", year)
+		visitPageByYear(year, "altair", c)
+		sleepLong()
+	}
+    
+    brand = "Alter"
+	years = visitFirstPage("figure", c) 
+	for _, year := range years {
+		fmt.Println("Scraping from year: ", year)
+		visitPageByYear(year, "figure", c)
 		sleepLong()
 	}
 }
 
-func visitFirstPage(c *colly.Collector) []string {
+func visitFirstPage(page string, c *colly.Collector) []string {
 	var years []string
 	c.OnHTML("#changeY", func(e *colly.HTMLElement) {
 		years = e.ChildAttrs("option", "value")
@@ -42,28 +62,28 @@ func visitFirstPage(c *colly.Collector) []string {
         links := e.ChildAttrs("a", "href")
         for _, link := range links {
             sleepShort()
-            addCharacterToCsv(link, c)
+            addCharacterToCsv(link)
         }
     })
 
     sleepShort()
-	url := fmt.Sprintf("https://alter-web.jp/figure")
+	url := fmt.Sprintf("https://alter-web.jp/%s", page)
 	c.Visit(url)
 
 	return years
 }
 
-func visitPageByYear(year string, c *colly.Collector) {
+func visitPageByYear(year string, page string, c *colly.Collector) {
     c.OnHTML(".type-a", func(e *colly.HTMLElement) {
         links := e.ChildAttrs("a", "href")
         for _, link := range links {
             sleepShort()
-            addCharacterToCsv(link, c)
+            addCharacterToCsv(link)
         }
     })
 
     sleepShort()
-	url := fmt.Sprintf("https://alter-web.jp/figure/?yy=%s&mm=", year)
+	url := fmt.Sprintf("https://alter-web.jp/%s/?yy=%s&mm=", page, year)
 	c.Visit(url)
 }
 
@@ -81,7 +101,12 @@ func createCsvFile(fileHeader []string) {
     }
 }
 
-func addCharacterToCsv(link string, c *colly.Collector) {
+func addCharacterToCsv(link string) {
+	c := colly.NewCollector()
+	c.OnRequest(func(r *colly.Request) {
+		r.Headers.Set("User-Agent", userAgent)
+	})
+
     csvFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
     if err != nil {
         log.Fatalf("Can't read file: %s", err)
@@ -92,28 +117,49 @@ func addCharacterToCsv(link string, c *colly.Collector) {
 
     // Get Figure name
     var name string
-    c.OnHTML(".c-figure", func(e *colly.HTMLElement) {
+    c.OnHTML(".hl06", func(e *colly.HTMLElement) {
         name = e.Text
-        fmt.Println(name)
-        data = append(data, name)
+        data = append(data, name) 
     })
 
-    /*
-    // Get Figure Table https://www.scraperapi.com/blog/scrape-html-tables-in-golang-using-colly/
+    // Get Figure Table
     c.OnHTML(".tbl-01 > tbody", func(e *colly.HTMLElement) {
         e.ForEach("tr", func(_ int, el *colly.HTMLElement) {
-            fmt.Println(el.ChildText("td:nth-child(1)"))
+            text := el.ChildText("td")
+            data = append(data, strings.Join(strings.Fields(text), " "))
         })
     })
-    */
 
+    // Get Material
+    c.OnHTML(".spec > .txt", func(h *colly.HTMLElement) {
+        data = append(data, strings.Join(strings.Fields(h.Text), " "))
+    })
+
+    // Add Url
     url := fmt.Sprintf("https://alter-web.jp%s", link)
+    data = append(data, url)
+
+    // Add Blog links
+    c.OnHTML(".imgtxt-type-b", func(h *colly.HTMLElement) {
+        blogLinks := h.ChildAttrs("a", "href")
+        for i, blogLink := range blogLinks {
+            blogLinks[i] = fmt.Sprintf("https://alter-web.jp%s", blogLink)
+        }
+        data = append(data, strings.Join(blogLinks, ","))
+    })
+
 	err = c.Visit(url)
     if err != nil {
-        log.Fatalf("Bad link: %s, %s", err, link)
+        log.Fatalf("Error: %s, %s", err, link)
     }
 
-    fmt.Printf("Adding %s to file...", name)
+    // Add Brand
+    data = append(data, brand) 
+
+    fmt.Printf("Adding %s to file...\n", name)
+    for _, entry := range data {
+        fmt.Println(entry)
+    }
     csvWriter := *csv.NewWriter(csvFile)
     csvWriter.Write(data)
     csvWriter.Flush()

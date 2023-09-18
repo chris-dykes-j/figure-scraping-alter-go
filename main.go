@@ -22,7 +22,7 @@ func main() {
 		r.Headers.Set("User-Agent", userAgent)
 	})
 
-    columnNames := []string { "name","series","character","release","price","size","sculptor","painter","material","url","blog_url", "brand"}
+    columnNames := []string { "name","series","character","release","price","size","sculptor","painter","material", "blog_url", "brand", "url"}
     createCsvFile(columnNames)
 
     var years []string
@@ -126,7 +126,11 @@ func addCharacterToCsv(link string) {
     c.OnHTML(".tbl-01 > tbody", func(e *colly.HTMLElement) {
         e.ForEach("tr", func(_ int, el *colly.HTMLElement) {
             text := el.ChildText("td")
-            data = append(data, strings.Join(strings.Fields(text), " "))
+            if text == "" {
+                data = append(data, "null")
+            } else {
+                data = append(data, strings.Join(strings.Fields(text), " "))
+            }
         })
     })
 
@@ -134,10 +138,6 @@ func addCharacterToCsv(link string) {
     c.OnHTML(".spec > .txt", func(h *colly.HTMLElement) {
         data = append(data, strings.Join(strings.Fields(h.Text), " "))
     })
-
-    // Add Url
-    url := fmt.Sprintf("https://alter-web.jp%s", link)
-    data = append(data, url)
 
     // Add Blog links
     var blogLinks []string
@@ -150,6 +150,7 @@ func addCharacterToCsv(link string) {
         data = append(data, strings.Join(blogLinks, ","))
     })
 
+    url := fmt.Sprintf("https://alter-web.jp%s", link)
 	err = c.Visit(url)
     if err != nil {
         log.Fatalf("Error: %s, %s", err, link)
@@ -162,6 +163,9 @@ func addCharacterToCsv(link string) {
 
     // Add Brand
     data = append(data, brand) 
+
+    // Add Url
+    data = append(data, url)
 
     fmt.Printf("Adding %s to file...\n", name)
     for _, entry := range data {

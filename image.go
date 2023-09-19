@@ -16,7 +16,7 @@ func createYearDir(year string) string {
 		log.Fatal("FIGURE_IMAGE_ROOT environment variable not set")
 	}
 
-	parentDir := filepath.Join(root, year) 
+	parentDir := filepath.Join(root, year)
 	if _, err := os.Stat(parentDir); errors.Is(err, os.ErrNotExist) {
 		err := os.Mkdir(parentDir, os.ModePerm)
 		if err != nil {

@@ -18,7 +18,7 @@ func visitFirstPage(page string, c *colly.Collector) []string {
 	return years
 }
 
-func visitPageByYear(year string, page string, c *colly.Collector) {
+func visitPageByYear(year string, page string, brand string, c *colly.Collector) {
 	root := createYearDir(year)
 
 	// Seems to behave linearly, so it should be fine.
@@ -38,7 +38,7 @@ func visitPageByYear(year string, page string, c *colly.Collector) {
 		links := e.ChildAttrs("a", "href")
 		for i, link := range links {
 			sleepShort()
-			addCharacterToCsv(link, root, figureNames[i])
+			addCharacterToCsv(link, root, figureNames[i], brand, "alter-jp.csv", c)
 		}
 	})
 

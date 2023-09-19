@@ -11,7 +11,16 @@ import (
 	"github.com/gocolly/colly"
 )
 
-func createCsvFile(fileHeader []string) {
+type FigureData struct {
+	Name      string
+	TableData []string
+	Material  string
+	URL       string
+	BlogLinks string
+	Brand     string
+}
+
+func createCsvFile(fileName string, fileHeader []string) {
 	_, err := os.Stat(fileName)
 	if os.IsNotExist(err) {
 		csvFile, err2 := os.Create(fileName)
@@ -25,19 +34,20 @@ func createCsvFile(fileHeader []string) {
 	}
 }
 
-func addCharacterToCsv(link string, root string, name string) {
-	c := colly.NewCollector()
-	c.OnRequest(func(r *colly.Request) {
-		r.Headers.Set("User-Agent", userAgent)
-	})
-
-	csvFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatalf("Can't read file: %s", err)
+func addCharacterToCsv(link string, root string, name string, brand string, fileName string, c *colly.Collector) {
+	data := structToArray(collectData(link, root, name, brand, c))
+	if len(data) != 12 {
+		log.Fatalf("Error: column number does not match: %d", len(data))
 	}
-	defer csvFile.Close()
+	addDataToCsv(fileName, data)
+}
 
-	data := []string{}
+func collectData(link string, root string, name string, brand string, c *colly.Collector) FigureData {
+	var data FigureData
+
+	data.Name = name
+	data.URL = link
+	data.Brand = brand
 
 	// Add figure images
 	figureDir := filepath.Join(root, name)
@@ -56,60 +66,72 @@ func addCharacterToCsv(link string, root string, name string) {
 	c.OnHTML(".tbl-01 > tbody", func(e *colly.HTMLElement) {
 		e.ForEach("tr", func(_ int, el *colly.HTMLElement) {
 			text := el.ChildText("td")
-			if text == "" {
-				data = append(data, "null")
-			} else {
-				data = append(data, strings.Join(strings.Fields(text), " "))
-			}
+			data.TableData = append(data.TableData, strings.Join(strings.Fields(text), " "))
 		})
 	})
+	defer c.OnHTMLDetach(".tbl-01 > tbody")
 
 	// Get Material
 	c.OnHTML(".spec > .txt", func(h *colly.HTMLElement) {
-		data = append(data, strings.Join(strings.Fields(h.Text), " "))
+		data.Material = strings.Join(strings.Fields(h.Text), " ")
 	})
+	defer c.OnHTMLDetach(".spec > .txt")
 
-	// Add Blog links
+	// Get Blog links
 	var blogLinks []string
 	c.OnHTML(".imgtxt-type-b", func(h *colly.HTMLElement) {
-		blogLinks = h.ChildAttrs("a", "href")
-		for i, blogLink := range blogLinks {
-			println(blogLink)
-			blogLinks[i] = fmt.Sprintf("https://alter-web.jp%s", blogLink)
-		}
-		data = append(data, strings.Join(blogLinks, ","))
+		h.ForEach("a", func(_ int, el *colly.HTMLElement) {
+			blogLink := el.Attr("href")
+			blogLink = fmt.Sprintf("https://alter-web.jp%s", blogLink)
+			blogLinks = append(blogLinks, blogLink)
+		})
 	})
+	defer c.OnHTMLDetach(".imgtxt-type-b")
 
 	url := fmt.Sprintf("https://alter-web.jp%s", link)
-	err = c.Visit(url)
+	err := c.Visit(url)
 	if err != nil {
 		log.Fatalf("Error: %s, %s", err, link)
 	}
 
-	// Handle empty blogLinks
-	if len(blogLinks) == 0 {
-		data = append(data, "null")
+	// Add blogLinks
+	data.BlogLinks = strings.Join(blogLinks, ",")
+
+	sleepShort()
+	return data
+}
+
+func addDataToCsv(fileName string, data []string) {
+	csvFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("Can't read file: %s", err)
 	}
+	defer csvFile.Close()
 
-	// Add Brand
-	data = append(data, brand)
+	fmt.Printf("Adding %s to file...\n", data[0])
 
-	// Add Url
-	data = append(data, url)
-
-	fmt.Printf("Adding %s to file...\n", name)
 	for _, entry := range data {
 		fmt.Println(entry)
 	}
 	csvWriter := *csv.NewWriter(csvFile)
 	csvWriter.Write(data)
 	csvWriter.Flush()
+}
 
-	c.OnHTMLDetach(".hl06")
-	c.OnHTMLDetach(".tbl-01 > tbody")
-	c.OnHTMLDetach(".spec > .txt")
-	c.OnHTMLDetach(".imgtxt-type-b")
-	c.OnHTMLDetach(".item-mainimg > img")
-	c.OnHTMLDetach(".imgset > li")
-	sleepShort()
+func structToArray(figureData FigureData) []string {
+	// Remember: columnNames := []string{"name", "series", "character", "release", "price", "size", "sculptor", "painter", "material", "brand", "url", "blog_url"}
+	return []string{
+		figureData.Name,
+		figureData.TableData[0],
+		figureData.TableData[1],
+		figureData.TableData[2],
+		figureData.TableData[3],
+		figureData.TableData[4],
+		figureData.TableData[5],
+		figureData.TableData[6],
+		figureData.TableData[7],
+		figureData.Brand,
+		figureData.URL,
+		figureData.BlogLinks,
+	}
 }

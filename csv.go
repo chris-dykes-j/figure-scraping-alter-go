@@ -34,15 +34,24 @@ func createCsvFile(fileName string, fileHeader []string) {
 	}
 }
 
-func addCharacterToCsv(link string, root string, name string, brand string, fileName string, c *colly.Collector) {
-	data := structToArray(collectData(link, root, name, brand, c))
+func addCharacterToCsv(link string, root string, name string, brand string, fileName string) {
+	data := structToArray(collectData(link, root, name, brand))
+	if len(data) == 0 {
+		log.Fatalf("Error: No data to add")
+	}
 	if len(data) != 12 {
 		log.Fatalf("Error: column number does not match: %d", len(data))
 	}
 	addDataToCsv(fileName, data)
 }
 
-func collectData(link string, root string, name string, brand string, c *colly.Collector) FigureData {
+func collectData(link string, root string, name string, brand string) FigureData {
+	userAgent := "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/116.0"
+	c := colly.NewCollector()
+	c.OnRequest(func(r *colly.Request) {
+		r.Headers.Set("User-Agent", userAgent)
+	})
+
 	var data FigureData
 
 	data.Name = name
@@ -129,7 +138,7 @@ func structToArray(figureData FigureData) []string {
 		figureData.TableData[4],
 		figureData.TableData[5],
 		figureData.TableData[6],
-		figureData.TableData[7],
+        figureData.Material,
 		figureData.Brand,
 		figureData.URL,
 		figureData.BlogLinks,

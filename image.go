@@ -69,5 +69,5 @@ func downloadImg(imageUrl string, directory string, imageName string) {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("Saved image %s to %s", imageName, directory)
+	fmt.Printf("Saved image %s to %s\n", imageName, directory)
 }

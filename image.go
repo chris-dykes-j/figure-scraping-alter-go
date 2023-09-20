@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func createYearDir(year string) string {
@@ -36,7 +37,7 @@ func createFigureDirs(root string, figures []string) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Printf("Made %s directory\n", dir)
+			fmt.Printf("Made %s directory\n", strings.Replace(dir, "/", "\/", -1))
 		}
 	}
 }

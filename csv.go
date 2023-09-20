@@ -55,7 +55,7 @@ func collectData(link string, root string, name string, brand string) FigureData
 	var data FigureData
 
 	data.Name = name
-	data.URL = link
+	data.URL = fmt.Sprintf("https://alter-web.jp%s", link)
 	data.Brand = brand
 
 	// Add figure images

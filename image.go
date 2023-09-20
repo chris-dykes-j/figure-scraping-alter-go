@@ -31,13 +31,13 @@ func createYearDir(year string) string {
 
 func createFigureDirs(root string, figures []string) {
 	for _, figure := range figures {
-		dir := filepath.Join(root, figure)
+		dir := filepath.Join(root, strings.ReplaceAll(figure, "/", "-"))
 		if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
 			err := os.Mkdir(dir, os.ModePerm)
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Printf("Made %s directory\n", strings.Replace(dir, "/", "\/", -1))
+			fmt.Printf("Made %s directory\n", dir)
 		}
 	}
 }

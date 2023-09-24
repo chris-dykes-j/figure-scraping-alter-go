@@ -73,8 +73,12 @@ func collectData(link string, root string, name string, brand string) FigureData
 
 	// Get Figure Table
 	c.OnHTML(".tbl-01 > tbody", func(e *colly.HTMLElement) {
-		e.ForEach("tr", func(_ int, el *colly.HTMLElement) {
-			text := el.ChildText("td")
+		e.ForEach("td", func(_ int, el *colly.HTMLElement) {
+			text, err := el.DOM.Html()
+			if err != nil {
+				fmt.Printf("%s\n", err)
+			}
+			text = strings.ReplaceAll(text, "<br/>", " ")
 			data.TableData = append(data.TableData, strings.Join(strings.Fields(text), " "))
 		})
 	})
